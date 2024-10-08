@@ -7,49 +7,47 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from routers.admin import admin_router
-from routers.cons import TOKEN, database
-from routers.handlers import user_router
-from routers.inline_mode import inline_router
+from admin import admin_router
+from cons import TOKEN, database
+from aiogram.utils.i18n import I18n, FSMI18nMiddleware
+from handlers import main_router
+from inline_mode import inline_router
+from keyboard import c_lis
+from order import order_router
+from basket import basket_router
 
 dp = Dispatcher()
 
 
-async def on_startup(bot: Bot):
-    if not database.get('categories'):
+async def on_startup(dispatcher: Dispatcher, bot: Bot):
+    if not (database.get('categories')):
         database['categories'] = {}
-
     if not database.get('products'):
         database['products'] = {}
-
-    if not database.get('users'):
-        database['users'] = {}
-    if not database.get('basket'):
-        database['basket'] = {}
-    if not database.get('order_status'):
-        database['order_status'] = ('✅ accepted', '🔄 in standby mode')
-    if not database.get('order_count'):
-        database['order_count'] = 0
-
-    c_lis = [BotCommand(command='start', description='Botni boshlash'),
-             BotCommand(command='help', description='Yordam'),
-             ]
 
     await bot.set_my_commands(c_lis)
 
 
-async def on_shutdown(bot: Bot):
+async def on_shutdown(dispatcher: Dispatcher, bot: Bot):
     await bot.delete_my_commands()
 
 
 async def main() -> None:
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    i18n = I18n(path='locales')
+    dp.update.outer_middleware.register(FSMI18nMiddleware(i18n))
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
-    dp.include_routers(admin_router, user_router, inline_router)
+    dp.include_routers(
+        inline_router,
+        admin_router,
+        basket_router,
+        order_router,
+        main_router,
+    )
     await dp.start_polling(bot)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
